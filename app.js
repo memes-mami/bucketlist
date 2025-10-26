@@ -1,9 +1,5 @@
 // State Management (In-Memory)
 let appState = {
-  users: [
-    { id: 1, name: '' },
-    { id: 2, name: '' }
-  ],
   bucketListItems: [],
   currentTheme: 'light',
   timezone: 'Asia/Kolkata'
@@ -69,24 +65,9 @@ function setupEventListeners() {
   
   // Form submission
   document.getElementById('addItemForm').addEventListener('submit', handleAddItem);
-  
-  // User name inputs
-  document.getElementById('user1Name').addEventListener('change', (e) => updateUserName(1, e.target.value));
-  document.getElementById('user2Name').addEventListener('change', (e) => updateUserName(2, e.target.value));
-}
 
-// User Management
-function editUserName(userId) {
-  const input = document.getElementById(`user${userId}Name`);
-  input.focus();
-  input.select();
-}
-
-function updateUserName(userId, name) {
-  const user = appState.users.find(u => u.id === userId);
-  if (user) {
-    user.name = name.trim();
-  }
+  // CSV download
+  document.getElementById('downloadCSV').addEventListener('click', downloadCSV);
 }
 
 // Date & Time Management
@@ -141,6 +122,7 @@ function handleAddItem(e) {
   
   const scheduledDate = dateTimeValue ? new Date(dateTimeValue) : null;
   const createdAt = getISTDateTime();
+  const selectedUser = document.getElementById('userSelect').value;
   
   const newItem = {
     id: Date.now(),
@@ -150,7 +132,7 @@ function handleAddItem(e) {
     scheduledDate: scheduledDate ? scheduledDate.toISOString() : null,
     completed: false,
     createdAt: createdAt.toISOString(),
-    createdBy: getCurrentUser()
+    createdBy: selectedUser
   };
   
   appState.bucketListItems.unshift(newItem);
@@ -165,12 +147,6 @@ function handleAddItem(e) {
   
   // Show success feedback
   showNotification('Item added successfully! 🎉');
-}
-
-function getCurrentUser() {
-  const user1 = appState.users[0].name || 'User 1';
-  const user2 = appState.users[1].name || 'User 2';
-  return user1 || user2;
 }
 
 // Toggle Item Completion
@@ -280,7 +256,7 @@ function renderItems() {
             ` : ''}
             <span class="meta-item">
               <span>👤</span>
-              <span>${escapeHtml(item.createdBy || 'Unknown')}</span>
+              <span>${escapeHtml(item.createdBy)}</span>
             </span>
           </div>
         </div>
@@ -338,8 +314,8 @@ function showNotification(message) {
 }
 
 // Add notification animations
-const style = document.createElement('style');
-style.textContent = `
+const styleElem = document.createElement('style');
+styleElem.textContent = `
   @keyframes slideIn {
     from {
       transform: translateX(400px);
@@ -362,7 +338,35 @@ style.textContent = `
     }
   }
 `;
-document.head.appendChild(style);
+document.head.appendChild(styleElem);
+
+// CSV Download
+function downloadCSV() {
+  if (appState.bucketListItems.length === 0) {
+    showNotification('No items to download.');
+    return;
+  }
+  let csvContent = 'Title,Category,Description,Scheduled Date,Completed,Created At,Created By\n';
+  appState.bucketListItems.forEach(item => {
+    const title = item.title.replace(/"/g, '""');
+    const category = item.category;
+    const description = item.description.replace(/"/g, '""');
+    const scheduled = item.scheduledDate ? new Date(item.scheduledDate).toLocaleString() : '';
+    const completed = item.completed ? 'Yes' : 'No';
+    const createdAt = new Date(item.createdAt).toLocaleString();
+    const createdBy = item.createdBy.replace(/"/g, '""');
+    csvContent += `"${title}","${category}","${description}","${scheduled}",${completed},"${createdAt}","${createdBy}"\n`;
+  });
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = 'bucket_list.csv';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
 
 // Simulate real-time updates (for demo purposes)
 // In production, you would use WebSockets or a real-time database

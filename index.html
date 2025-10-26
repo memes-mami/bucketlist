@@ -20,30 +20,11 @@
         <!-- Users Section -->
         <section class="users-section">
             <div class="user-card">
-                <label class="user-label">User 1:</label>
-                <div class="user-name-container">
-                    <input 
-                        type="text" 
-                        class="user-name-input" 
-                        id="user1Name" 
-                        placeholder="Enter your name"
-                        maxlength="30"
-                    >
-                    <button class="edit-btn" onclick="editUserName(1)">✏️</button>
-                </div>
-            </div>
-            <div class="user-card">
-                <label class="user-label">User 2:</label>
-                <div class="user-name-container">
-                    <input 
-                        type="text" 
-                        class="user-name-input" 
-                        id="user2Name" 
-                        placeholder="Enter your name"
-                        maxlength="30"
-                    >
-                    <button class="edit-btn" onclick="editUserName(2)">✏️</button>
-                </div>
+                <label class="user-label" for="userSelect">Select User:</label>
+                <select id="userSelect" class="form-control">
+                    <option value="Mohini Harha">Mohini Harha</option>
+                    <option value="Vishnu">Vishnu</option>
+                </select>
             </div>
         </section>
 
@@ -108,7 +89,10 @@
         <section class="items-section">
             <div class="section-header">
                 <h2 class="section-title">Bucket List Items</h2>
-                <div class="item-count" id="itemCount">0 items</div>
+                <div class="flex items-center gap-8">
+                    <div class="item-count" id="itemCount">0 items</div>
+                    <button id="downloadCSV" class="btn btn--secondary">Download CSV</button>
+                </div>
             </div>
             <div class="items-container" id="itemsContainer">
                 <div class="empty-state" id="emptyState">
