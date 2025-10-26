@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shared Bucket List</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <!-- Header with theme toggle -->
+        <header class="header">
+            <h1 class="title">✨ Our Shared Bucket List</h1>
+            <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme">
+                <span class="theme-icon">🌙</span>
+            </button>
+        </header>
+
+        <!-- Users Section -->
+        <section class="users-section">
+            <div class="user-card">
+                <label class="user-label">User 1:</label>
+                <div class="user-name-container">
+                    <input 
+                        type="text" 
+                        class="user-name-input" 
+                        id="user1Name" 
+                        placeholder="Enter your name"
+                        maxlength="30"
+                    >
+                    <button class="edit-btn" onclick="editUserName(1)">✏️</button>
+                </div>
+            </div>
+            <div class="user-card">
+                <label class="user-label">User 2:</label>
+                <div class="user-name-container">
+                    <input 
+                        type="text" 
+                        class="user-name-input" 
+                        id="user2Name" 
+                        placeholder="Enter your name"
+                        maxlength="30"
+                    >
+                    <button class="edit-btn" onclick="editUserName(2)">✏️</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Add Item Section -->
+        <section class="add-item-section">
+            <h2 class="section-title">Add New Item</h2>
+            <form class="add-item-form" id="addItemForm">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Title *</label>
+                        <input 
+                            type="text" 
+                            class="form-control" 
+                            id="itemTitle" 
+                            placeholder="What's on your bucket list?"
+                            required
+                        >
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Category *</label>
+                        <select class="form-control" id="itemCategory" required>
+                            <option value="">Select category</option>
+                            <option value="travel">🌍 Travel</option>
+                            <option value="food">🍔 Food</option>
+                            <option value="clothes">👚 Clothes</option>
+                            <option value="experiences">🎉 Experiences</option>
+                            <option value="books">📚 Books</option>
+                            <option value="wellness">🧘 Wellness</option>
+                            <option value="tech">💻 Tech</option>
+                            <option value="movies">🎬 Movies</option>
+                            <option value="finance">💸 Finance</option>
+                            <option value="misc">📝 Misc</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Description</label>
+                    <textarea 
+                        class="form-control" 
+                        id="itemDescription" 
+                        placeholder="Add more details... (optional)"
+                        rows="2"
+                    ></textarea>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Date &amp; Time</label>
+                        <input 
+                            type="datetime-local" 
+                            class="form-control" 
+                            id="itemDateTime"
+                        >
+                    </div>
+                    <div class="form-group">
+                        <button type="submit" class="btn btn--primary">Add to List</button>
+                    </div>
+                </div>
+            </form>
+        </section>
+
+        <!-- Bucket List Items -->
+        <section class="items-section">
+            <div class="section-header">
+                <h2 class="section-title">Bucket List Items</h2>
+                <div class="item-count" id="itemCount">0 items</div>
+            </div>
+            <div class="items-container" id="itemsContainer">
+                <div class="empty-state" id="emptyState">
+                    <div class="empty-icon">📝</div>
+                    <p>No items yet! Start adding your dreams and goals.</p>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
