@@ -6,6 +6,23 @@
     <title>Bucket List</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <!-- Firebase SDKs (use compat version for older syntax) -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-database-compat.js"></script>
+    <!-- Initialize Firebase -->
+    <script>
+      const firebaseConfig = {
+        apiKey: "AIzaSyCyBkrvROYYCHCdRk4ySW47viGhiXkcPNU",
+        authDomain: "bucket-list-app-ec365.firebaseapp.com",
+        databaseURL: "https://bucket-list-app-ec365-default-rtdb.firebaseio.com",
+        projectId: "bucket-list-app-ec365",
+        storageBucket: "bucket-list-app-ec365.appspot.com",
+        messagingSenderId: "1009263299203",
+        appId: "1:1009263299203:web:6fd833958d3cf13f6529b6",
+        measurementId: "G-H9B9VB74W5"
+      };
+      firebase.initializeApp(firebaseConfig);
+    </script>
 </head>
 <body>
     <div class="container">
@@ -91,7 +108,6 @@
                 <h2 class="section-title">Bucket List Items</h2>
                 <div class="flex items-center gap-8">
                     <div class="item-count" id="itemCount">0 items</div>
-                    <button id="downloadCSV" class="btn btn--secondary">Download CSV</button>
                 </div>
             </div>
             <div class="items-container" id="itemsContainer">

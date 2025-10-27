@@ -1,9 +1,12 @@
-// State Management (In-Memory + LocalStorage)
 let appState = {
   bucketListItems: [],
   currentTheme: 'light',
   timezone: 'Asia/Kolkata'
 };
+
+// Firebase reference
+const db = firebase.database();
+const bucketListRef = db.ref('bucketList');
 
 // Category icons mapping
 const categoryIcons = {
@@ -19,54 +22,42 @@ const categoryIcons = {
   misc: '📝'
 };
 
-// Load state from localStorage
-function loadState() {
-  const saved = localStorage.getItem('bucketListState');
-  if (saved) {
-    try {
-      const parsed = JSON.parse(saved);
-      appState = { ...appState, ...parsed };
-    } catch (err) {
-      console.error('Failed to load saved state:', err);
-    }
-  }
-}
-
-// Save state to localStorage
-function saveState() {
-  try {
-    localStorage.setItem('bucketListState', JSON.stringify(appState));
-  } catch (err) {
-    console.error('Failed to save state:', err);
-  }
-}
-
-// Initialize app
 function initApp() {
-  // loadState(); // REMOVE THIS LINE
-  loadItemsFromCsv(); // ADD THIS LINE
   loadTheme();
   setupEventListeners();
-  renderItems();
-  updateItemCount();
+  setupFirebaseListeners();
   setDefaultDateTime();
+}
+
+// Setup Firebase Realtime Listeners
+function setupFirebaseListeners() {
+  bucketListRef.on('value', (snapshot) => {
+    const data = snapshot.val() || {};
+    appState.bucketListItems = Object.entries(data)
+      .map(([key, item]) => ({ ...item, _key: key }))
+      .sort((a, b) => b.id - a.id);
+    renderItems();
+    updateItemCount();
+  });
 }
 
 // Theme Management
 function loadTheme() {
   const themeToggle = document.getElementById('themeToggle');
   const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-  
   if (appState.currentTheme === 'dark' || prefersDark) {
     document.documentElement.setAttribute('data-color-scheme', 'dark');
-    themeToggle.querySelector('.theme-icon').textContent = '☀️';
+    if (themeToggle && themeToggle.querySelector('.theme-icon')) {
+      themeToggle.querySelector('.theme-icon').textContent = '☀️';
+    }
     appState.currentTheme = 'dark';
   } else {
     document.documentElement.setAttribute('data-color-scheme', 'light');
-    themeToggle.querySelector('.theme-icon').textContent = '🌙';
+    if (themeToggle && themeToggle.querySelector('.theme-icon')) {
+      themeToggle.querySelector('.theme-icon').textContent = '🌙';
+    }
     appState.currentTheme = 'light';
   }
-  saveState();
 }
 
 function toggleTheme() {
@@ -76,9 +67,14 @@ function toggleTheme() {
 
 // Event Listeners
 function setupEventListeners() {
-  document.getElementById('themeToggle').addEventListener('click', toggleTheme);
-  document.getElementById('addItemForm').addEventListener('submit', handleAddItem);
-  document.getElementById('downloadCSV').addEventListener('click', downloadCSV);
+  const themeToggle = document.getElementById('themeToggle');
+  if (themeToggle) {
+    themeToggle.addEventListener('click', toggleTheme);
+  }
+  const addItemForm = document.getElementById('addItemForm');
+  if (addItemForm) {
+    addItemForm.addEventListener('submit', handleAddItem);
+  }
 }
 
 // Date & Time Management
@@ -86,7 +82,9 @@ function setDefaultDateTime() {
   const now = new Date();
   const istDate = getISTDateTime(now);
   const dateTimeInput = document.getElementById('itemDateTime');
-  dateTimeInput.value = formatDateTimeForInput(istDate);
+  if (dateTimeInput) {
+    dateTimeInput.value = formatDateTimeForInput(istDate);
+  }
 }
 
 function getISTDateTime(date = new Date()) {
@@ -119,31 +117,27 @@ function formatTimestamp(date) {
 // Add Item
 function handleAddItem(e) {
   e.preventDefault();
-  // ...existing code...
-  appState.bucketListItems.unshift(newItem);
-  saveState();
 
-  // Save to shared CSV on GitHub
-  saveItemToCsv(newItem)
-    .then(() => showNotification('Saved to shared CSV!'))
-    .catch(() => showNotification('Saved locally, but NOT to shared CSV!'));
+  const titleEl = document.getElementById('itemTitle');
+  const categoryEl = document.getElementById('itemCategory');
+  const descriptionEl = document.getElementById('itemDescription');
+  const dateTimeEl = document.getElementById('itemDateTime');
+  const userSelectEl = document.getElementById('userSelect');
 
-  // ...existing code...
-  
-  const title = document.getElementById('itemTitle').value.trim();
-  const category = document.getElementById('itemCategory').value;
-  const description = document.getElementById('itemDescription').value.trim();
-  const dateTimeValue = document.getElementById('itemDateTime').value;
-  
+  const title = titleEl ? titleEl.value.trim() : '';
+  const category = categoryEl ? categoryEl.value : '';
+  const description = descriptionEl ? descriptionEl.value.trim() : '';
+  const dateTimeValue = dateTimeEl ? dateTimeEl.value : '';
+  const selectedUser = userSelectEl ? userSelectEl.value : '';
+
   if (!title || !category) {
     alert('Please fill in the title and category!');
     return;
   }
-  
+
   const scheduledDate = dateTimeValue ? new Date(dateTimeValue) : null;
   const createdAt = getISTDateTime();
-  const selectedUser = document.getElementById('userSelect').value;
-  
+
   const newItem = {
     id: Date.now(),
     title,
@@ -154,41 +148,44 @@ function handleAddItem(e) {
     createdAt: createdAt.toISOString(),
     createdBy: selectedUser
   };
-  
-  appState.bucketListItems.unshift(newItem);
-  saveState();
-  
-  document.getElementById('addItemForm').reset();
-  setDefaultDateTime();
-  renderItems();
-  updateItemCount();
-  showNotification('Item added successfully! 🎉');
+
+  bucketListRef.push(newItem)
+    .then(() => {
+      if (document.getElementById('addItemForm')) {
+        document.getElementById('addItemForm').reset();
+      }
+      setDefaultDateTime();
+      showNotification('Item added successfully! 🎉');
+    })
+    .catch(error => {
+      console.error('Error saving item:', error);
+      showNotification('Failed to save item!');
+    });
 }
 
 // Toggle Item Completion
-function toggleItemCompletion(itemId) {
-  const item = appState.bucketListItems.find(i => i.id === itemId);
-  if (item) {
-    item.completed = !item.completed;
-    saveState();
-    
-    if (item.completed) {
-      triggerCelebration();
-    }
-    
-    renderItems();
-    updateItemCount();
-  }
+function toggleItemCompletion(firebaseKey, currentCompleted) {
+  bucketListRef.child(firebaseKey).update({ completed: !currentCompleted })
+    .then(() => {
+      if (!currentCompleted) triggerCelebration();
+    })
+    .catch(error => {
+      console.error('Error updating item:', error);
+      showNotification('Failed to update item!');
+    });
 }
 
 // Delete Item
-function deleteItem(itemId) {
+function deleteItem(firebaseKey) {
   if (confirm('Are you sure you want to delete this item?')) {
-    appState.bucketListItems = appState.bucketListItems.filter(i => i.id !== itemId);
-    saveState();
-    renderItems();
-    updateItemCount();
-    showNotification('Item deleted');
+    bucketListRef.child(firebaseKey).remove()
+      .then(() => {
+        showNotification('Item deleted');
+      })
+      .catch(error => {
+        console.error('Error deleting item:', error);
+        showNotification('Failed to delete item!');
+      });
   }
 }
 
@@ -196,29 +193,31 @@ function deleteItem(itemId) {
 function renderItems() {
   const container = document.getElementById('itemsContainer');
   const emptyState = document.getElementById('emptyState');
-  
+
+  if (!container || !emptyState) return;
+
   if (appState.bucketListItems.length === 0) {
     container.innerHTML = '';
     emptyState.style.display = 'flex';
     return;
   }
-  
+
   emptyState.style.display = 'none';
-  
+
   const itemsHTML = appState.bucketListItems.map(item => {
     const icon = categoryIcons[item.category] || '📝';
     const createdDate = new Date(item.createdAt);
     const scheduledDate = item.scheduledDate ? new Date(item.scheduledDate) : null;
-    
+
     return `
-      <div class="bucket-item ${item.completed ? 'completed' : ''}" data-id="${item.id}">
+      <div class="bucket-item ${item.completed ? 'completed' : ''}" data-id="${item._key}">
         <div class="item-content">
           <div class="item-header">
             <span class="item-category">${icon} ${item.category}</span>
             <div class="toggle-container">
               <label class="toggle-switch">
                 <input type="checkbox" ${item.completed ? 'checked' : ''} 
-                  onchange="toggleItemCompletion(${item.id})">
+                  onchange="toggleItemCompletion('${item._key}', ${item.completed})">
                 <span class="toggle-slider"></span>
               </label>
             </div>
@@ -245,7 +244,7 @@ function renderItems() {
           </div>
           
           <div class="item-actions">
-            <button class="action-btn delete" onclick="deleteItem(${item.id})">
+            <button class="action-btn delete" onclick="deleteItem('${item._key}')">
               🗑️ Delete
             </button>
           </div>
@@ -253,7 +252,7 @@ function renderItems() {
       </div>
     `;
   }).join('');
-  
+
   container.innerHTML = itemsHTML;
 }
 
@@ -262,7 +261,9 @@ function updateItemCount() {
   const total = appState.bucketListItems.length;
   const completed = appState.bucketListItems.filter(i => i.completed).length;
   const countEl = document.getElementById('itemCount');
-  countEl.textContent = `${completed}/${total} completed`;
+  if (countEl) {
+    countEl.textContent = `${completed}/${total} completed`;
+  }
 }
 
 // Utility Functions
@@ -277,7 +278,7 @@ function showNotification(message) {
   notification.className = 'notification';
   notification.textContent = message;
   document.body.appendChild(notification);
-  
+
   setTimeout(() => {
     notification.style.animation = 'slideOut 0.5s forwards';
     setTimeout(() => notification.remove(), 500);
@@ -303,7 +304,7 @@ function triggerCelebration() {
     }
 
     const particleCount = 50 * (timeLeft / duration);
-    
+
     confetti(Object.assign({}, defaults, {
       particleCount,
       origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 }
@@ -315,87 +316,13 @@ function triggerCelebration() {
   }, 250);
 }
 
-// CSV Download
-function downloadCSV() {
-  if (appState.bucketListItems.length === 0) {
-    showNotification('No items to download.');
-    return;
-  }
-
-  const header = ['Title','Category','Description','Scheduled Date','Completed','Created At','Created By'];
-  const csvRows = [header.join(',')];
-
-  appState.bucketListItems.forEach(item => {
-    const row = [
-      `"${item.title.replace(/"/g, '""')}"`,
-      `"${item.category}"`,
-      `"${(item.description || '').replace(/"/g, '""')}"`,
-      `"${item.scheduledDate ? new Date(item.scheduledDate).toLocaleString() : ''}"`,
-      `"${item.completed ? 'Yes' : 'No'}"`,
-      `"${new Date(item.createdAt).toLocaleString()}"`,
-      `"${item.createdBy}"`
-    ].join(',');
-    csvRows.push(row);
-  });
-
-  const csvContent = csvRows.join('\n') + '\n';
-  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = 'bucket_list.csv';
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
-}
+// Expose functions for inline event handlers
+window.toggleItemCompletion = toggleItemCompletion;
+window.deleteItem = deleteItem;
 
 // Initialize app when DOM is ready
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', initApp);
 } else {
   initApp();
-}
-async function saveItemToCsv(item) {
-  try {
-    const resp = await fetch('/api/save-csv', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(item)
-    });
-    if (!resp.ok) {
-      const err = await resp.json().catch(() => ({ error: 'Unknown' }));
-      throw new Error(err && err.error ? err.error : `HTTP ${resp.status}`);
-    }
-    return await resp.json();
-  } catch (err) {
-    showNotification('Failed to save to shared CSV!');
-    throw err;
-  }
-}
-async function loadItemsFromCsv() {
-  try {
-    const resp = await fetch('/api/load-csv');
-    if (!resp.ok) return;
-    const { csv } = await resp.json();
-    const lines = csv.trim().split('\n');
-    const items = [];
-    for (let i = 1; i < lines.length; i++) {
-      const cols = lines[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(s => s.replace(/^"|"$/g, '').replace(/""/g, '"'));
-      items.push({
-        title: cols[0],
-        category: cols[1],
-        description: cols[2],
-        scheduledDate: cols[3] ? new Date(cols[3]).toISOString() : null,
-        completed: cols[4] === 'Yes',
-        createdAt: cols[5] ? new Date(cols[5]).toISOString() : null,
-        createdBy: cols[6] || ''
-      });
-    }
-    appState.bucketListItems = items.reverse(); // newest last
-    renderItems();
-    updateItemCount();
-  } catch (err) {
-    console.error('Failed to load shared CSV:', err);
-  }
 }
