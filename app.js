@@ -43,7 +43,8 @@ function saveState() {
 
 // Initialize app
 function initApp() {
-  loadState();
+  // loadState(); // REMOVE THIS LINE
+  loadItemsFromCsv(); // ADD THIS LINE
   loadTheme();
   setupEventListeners();
   renderItems();
@@ -118,6 +119,16 @@ function formatTimestamp(date) {
 // Add Item
 function handleAddItem(e) {
   e.preventDefault();
+  // ...existing code...
+  appState.bucketListItems.unshift(newItem);
+  saveState();
+
+  // Save to shared CSV on GitHub
+  saveItemToCsv(newItem)
+    .then(() => showNotification('Saved to shared CSV!'))
+    .catch(() => showNotification('Saved locally, but NOT to shared CSV!'));
+
+  // ...existing code...
   
   const title = document.getElementById('itemTitle').value.trim();
   const category = document.getElementById('itemCategory').value;
@@ -344,4 +355,47 @@ if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', initApp);
 } else {
   initApp();
+}
+async function saveItemToCsv(item) {
+  try {
+    const resp = await fetch('/api/save-csv', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(item)
+    });
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({ error: 'Unknown' }));
+      throw new Error(err && err.error ? err.error : `HTTP ${resp.status}`);
+    }
+    return await resp.json();
+  } catch (err) {
+    showNotification('Failed to save to shared CSV!');
+    throw err;
+  }
+}
+async function loadItemsFromCsv() {
+  try {
+    const resp = await fetch('/api/load-csv');
+    if (!resp.ok) return;
+    const { csv } = await resp.json();
+    const lines = csv.trim().split('\n');
+    const items = [];
+    for (let i = 1; i < lines.length; i++) {
+      const cols = lines[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(s => s.replace(/^"|"$/g, '').replace(/""/g, '"'));
+      items.push({
+        title: cols[0],
+        category: cols[1],
+        description: cols[2],
+        scheduledDate: cols[3] ? new Date(cols[3]).toISOString() : null,
+        completed: cols[4] === 'Yes',
+        createdAt: cols[5] ? new Date(cols[5]).toISOString() : null,
+        createdBy: cols[6] || ''
+      });
+    }
+    appState.bucketListItems = items.reverse(); // newest last
+    renderItems();
+    updateItemCount();
+  } catch (err) {
+    console.error('Failed to load shared CSV:', err);
+  }
 }
